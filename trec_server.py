@@ -71,16 +71,19 @@ class Detector(object):
             return self.cache[id]
         else:
             predict_lang = self.likelihood(st)
-            self.cache[id] = predict_lang
-            # save to database
-            cur = self.con.cursor()
-            try:
-                cur.execute('INSERT INTO lang VALUES (?, ?)', (id, predict_lang))
-                if len(self.cache) % 1000 == 0:
-                    self.con.commit()
-                    print 'Cache has {} language annotations.'.format(len(self.cache))
-            except:
-                pass
+
+            if id > 0:
+                self.cache[id] = predict_lang
+                # save to database
+                cur = self.con.cursor()
+                try:
+                    cur.execute('INSERT INTO lang VALUES (?, ?)', (id, predict_lang))
+                    if len(self.cache) % 1000 == 0:
+                        self.con.commit()
+                        print 'Cache has {} language annotations.'.format(len(self.cache))
+                except:
+                    pass
+
             return predict_lang
 
 
@@ -94,7 +97,10 @@ class LdigTrecServerHandler(BaseHTTPRequestHandler):
         path = url.path
         if path == "/detect":
             params = urlparse.parse_qs(url.query)
-            id = long(unicode(params['id'][0], 'utf-8'))
+            if 'id' in params:
+                id = long(unicode(params['id'][0], 'utf-8'))
+            else:
+                id = -1
             text = unicode(params['text'][0], 'utf-8')
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
