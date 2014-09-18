@@ -47,13 +47,11 @@ class Detector(object):
 
         print 'Cache loaded with {} language annotations.'.format(len(self.cache))
 
-
     # prediction probability
     def predict(self, events):
         sum_w = numpy.dot(self.param[events.keys(),].T, events.values())
         exp_w = numpy.exp(sum_w - sum_w.max())
         return exp_w / exp_w.sum()
-
 
     def likelihood(self, st):
         label, text, org_text = ldig.normalize_text(st)
@@ -64,7 +62,6 @@ class Detector(object):
         predict_lang = self.labels[predict_k]
         if y[predict_k] < 0.6: predict_lang = ""
         return predict_lang
-
 
     def detect(self, id, st):
         if id in self.cache:
@@ -111,6 +108,9 @@ class LdigTrecServerHandler(BaseHTTPRequestHandler):
             self.send_response(404, "Not Found : " + url.path)
             self.send_header("Expires", "Fri, 31 Dec 2100 00:00:00 GMT")
             self.end_headers()
+
+    def log_message(self, format, *args):
+        return
 
 
 server = HTTPServer(('', options.port), LdigTrecServerHandler)
