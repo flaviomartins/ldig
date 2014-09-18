@@ -47,42 +47,41 @@ class Detector(object):
 
         print 'Cache loaded with {} language annotations.'.format(len(self.cache))
 
-    def get_probabilities(self, st):
+
+    # prediction probability
+    def predict(self, events):
+        sum_w = numpy.dot(self.param[events.keys(),].T, events.values())
+        exp_w = numpy.exp(sum_w - sum_w.max())
+        return exp_w / exp_w.sum()
+
+
+    def likelihood(self, st):
         label, text, org_text = ldig.normalize_text(st)
         events = self.trie.extract_features(u"\u0001" + text + u"\u0001")
-        sum = numpy.zeros(len(self.labels))
+        y = self.predict(events)
+        predict_k = y.argmax()
 
-        for id in sorted(events, key=lambda id:self.features[id][0]):
-            phi = self.param[id,]
-            sum += phi * events[id]
-        exp_w = numpy.exp(sum - sum.max())
-        prob = exp_w / exp_w.sum()
-        return dict(zip(self.labels, ["%0.3f" % x for x in prob]))
+        predict_lang = self.labels[predict_k]
+        if y[predict_k] < 0.6: predict_lang = ""
+        return predict_lang
+
 
     def detect(self, id, st):
         if id in self.cache:
             return self.cache[id]
         else:
-            probabilities = self.get_probabilities(st)
-            best_prob = 0.0
-            best_lang = None
-            for lang in probabilities.keys():
-                prob = float(probabilities[lang])
-                if prob > best_prob:
-                    best_prob = prob
-                    best_lang = lang
-
-            self.cache[id] = best_lang
+            predict_lang = self.likelihood(st)
+            self.cache[id] = predict_lang
             # save to database
             cur = self.con.cursor()
             try:
-                cur.execute('INSERT INTO lang VALUES (?, ?)', (id, best_lang))
+                cur.execute('INSERT INTO lang VALUES (?, ?)', (id, predict_lang))
                 if len(self.cache) % 1000 == 0:
                     self.con.commit()
                     print 'Cache has {} language annotations.'.format(len(self.cache))
             except:
                 pass
-            return best_lang
+            return predict_lang
 
 
 detector = Detector(options.model, options.database)
